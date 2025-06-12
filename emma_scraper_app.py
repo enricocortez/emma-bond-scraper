@@ -12,21 +12,21 @@ if uploaded_file:
     html_content = uploaded_file.read().decode("utf-8")
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    # Show number of tables found for debugging
     tables = soup.find_all('table')
     st.write(f"Found {len(tables)} table(s) in the uploaded HTML.")
 
-    selected_table = None
+    table_options = []
     for idx, table in enumerate(tables):
         first_row = table.find('tr')
         if first_row:
-            headers = [th.get_text(strip=True).lower() for th in first_row.find_all(['th', 'td'])]
-            st.write(f"Table {idx} headers: {headers}")
-            if any(h in headers for h in ['issuer', 'state', 'sale date', 'par amount', 'purpose']):
-                selected_table = table
-                break
+            headers = [th.get_text(strip=True) for th in first_row.find_all(['th', 'td'])]
+            table_options.append((idx, headers))
 
-    if selected_table:
+    if table_options:
+        table_idx = st.selectbox("Select a table to preview:", options=[f"Table {idx}: {headers}" for idx, headers in table_options])
+        selected_index = int(table_idx.split()[1].strip(':'))
+        selected_table = tables[selected_index]
+
         headers = [th.get_text(strip=True) for th in selected_table.find_all('tr')[0].find_all(['th', 'td'])]
         rows = []
         for row in selected_table.find_all('tr')[1:]:
@@ -35,7 +35,6 @@ if uploaded_file:
 
         df = pd.DataFrame(rows, columns=headers)
 
-        # Display raw table preview
         st.subheader("Raw Table Preview")
         st.dataframe(df)
 
@@ -54,6 +53,6 @@ if uploaded_file:
             csv = filtered_df.to_csv(index=False).encode('utf-8')
             st.download_button("Download Filtered CSV", csv, "filtered_emma_bonds.csv", "text/csv")
         else:
-            st.warning("The uploaded table does not contain a recognizable 'Purpose' column.")
+            st.warning("The selected table does not contain a recognizable 'Purpose' column.")
     else:
-        st.error("No suitable table found in the uploaded HTML file.")
+        st.error("No HTML tables found in the uploaded file.")
